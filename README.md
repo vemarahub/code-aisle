@@ -1,7 +1,7 @@
 # Code Aisle — a code-aware agent on MongoDB Atlas
 
 A greenfield demo for a MongoDB `.local` session. It shows **MongoDB Atlas as the
-operational + retrieval layer for a code-aware agent**, using the 2026 Atlas AI
+operational + retrieval layer for a code-aware agent**, using Atlas AI
 stack:
 
 - **Automated Embeddings** — an `autoEmbed` Vector Search index; no embedding
