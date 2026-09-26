@@ -11,9 +11,6 @@ stack:
 - **Continuously-updating RAG** — Atlas Stream Processing keeps new code
   searchable in real time.
 
-> Positioning: this is **not** "MongoDB as a vector database." It's MongoDB as
-> the single place where your application data, metadata, embeddings, and
-> retrieval live together.
 
 ## Requirements (important)
 
@@ -104,7 +101,6 @@ scripts/
    code runs in the app — MongoDB owns the vectors.
 4. `npm run retrieve "<question>"` — full `$vectorSearch` → `$rerank` retrieval.
 
-## The three "wows"
 
 1. **Automated Embeddings (no pipeline)** — `create-index` + `verify-index`
    show MongoDB embedding code with voyage-code-4; the app never computes a
