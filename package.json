@@ -1,0 +1,33 @@
+{
+  "name": "code-aisle-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MongoDB .local demo — a code-aware agent built on MongoDB Atlas (Automated Embeddings, voyage-code-4, native $rerank, Stream Processing).",
+  "scripts": {
+    "dev": "next dev -p 3070",
+    "build": "next build",
+    "start": "next start -p 3070",
+    "lint": "eslint app lib",
+    "ingest": "node --env-file=.env scripts/ingest.mjs",
+    "create-index": "node --env-file=.env scripts/create-index.mjs",
+    "verify-index": "node --env-file=.env scripts/verify-index.mjs",
+    "retrieve": "node --env-file=.env scripts/retrieve.mjs",
+    "commit-code": "node --env-file=.env scripts/commit-new-code.mjs",
+    "stream:create": "node --env-file=.env scripts/stream-processor.mjs"
+  },
+  "dependencies": {
+    "mongodb": "^7.1.0",
+    "next": "16.3.5",
+    "react": "19.2.3",
+    "react-dom": "19.2.3"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3.3.7",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.3.5",
+    "typescript": "^5"
+  }
+}

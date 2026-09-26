@@ -1,0 +1,34 @@
+/* Demo styles — intentionally large and high-contrast for room legibility. */
+:root {
+  --bg: #0b1020;
+  --panel: #141b2e;
+  --panel-2: #1b2338;
+  --text: #e7ecf5;
+  --muted: #9aa7c2;
+  --accent: #00ed64; /* MongoDB green */
+  --accent-2: #4f8cff;
+  --border: #263049;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+code,
+pre {
+  font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+}
