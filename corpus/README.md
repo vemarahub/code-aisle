@@ -1,8 +1,7 @@
 # Demo corpus — a tiny multi-service codebase
 
-A small, controlled "monorepo" used as the retrieval corpus for the demo. Each
-file has a deliberately distinct, semantically obvious purpose so that semantic
-code search returns predictable, easy-to-explain results on stage.
+A small, controlled "monorepo" used as the retrieval corpus
+
 
 ```
 corpus/
