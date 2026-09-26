@@ -96,7 +96,7 @@ npm run retrieve -- --answer "Where is customer authentication handled?"   # + L
    `MfaService.ts` **document** — not a git commit, not a file edit) → re-ask the
    MFA question → it appears at #1 in ~5s. Reset with `npm run commit-code -- --remove`.
 
-## 6. What the toy corpus is (so you can explain it)
+## 6. What the toy corpus is
 
 `corpus/` is a **fake mini codebase** — 3 services, 9 files — that exists only to
 be searched. Each file is a small stub with a deliberately **distinct purpose**
@@ -109,29 +109,3 @@ code; the point is the MongoDB retrieval, not the code itself."*
   `RefundHandler.ts` (refunds), `CurrencyConverter.ts` (currency conversion).
 - **notifications-service** — `EmailSender.ts` (transactional email),
   `PushNotifier.ts` (mobile push), `TemplateRenderer.ts` (templating).
-
-## 7. Two questions you'll likely get
-
-**"Isn't storing the whole codebase as documents + embeddings expensive?"**
-You store the code once (you already have it in git — this is a copy for
-retrieval) and MongoDB stores one vector per chunk. Real systems don't embed
-whole files: they **chunk** code (by function/class/section), sometimes store
-only a summary + embedding, and re-embed **only changed chunks** (autoEmbed does
-delta detection). So the cost is proportional to code that *changes*, not the
-whole repo every time. This toy stores one doc per file for clarity; production
-would chunk more granularly.
-
-**"Do real systems work this way?"**
-Yes — this is the standard RAG-for-code pattern (the approach behind AI coding
-assistants): index code as vectors, retrieve by semantic similarity, rerank,
-feed to an LLM. The 2026 twist this demo shows is that MongoDB does the
-embedding + storage + search + rerank natively, instead of you gluing a separate
-embedding service + vector DB + reranker together.
-
-## 8. Deeper docs
-- `RUN-SHEET.md` — demo beats with full narration.
-- `DAY-OF-CHECKLIST.md` — one-page day-of checklist.
-- `FAILURE-SAFETY.md` — recordings + contingencies.
-- `CAREER-TALK.md` — the "Careers Without a Map" talk.
-- `SESSION-RUNSHEET.md` — talk + demo combined.
-- `../diagrams/code-aisle.c4` — architecture (render with `npx likec4 start diagrams`).
