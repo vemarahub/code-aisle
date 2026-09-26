@@ -49,6 +49,8 @@ Store recordings locally on the demo machine (not streamed from the cloud).
 | `$rerank … is not allowed` in CLI | Same as above | Expected on free M0. It's the fallback, not a crash. |
 | Index not `queryable` | autoEmbed still building | `npm run verify-index` waits; if it stalls, use a recording. |
 | `MfaService.ts` doesn't appear after commit | auto-embed sync lag | Wait ~5–10s and re-ask once; else cut to recording #3. |
+| **Answer panel says "LLM not reachable"** | Ollama not started / wrong port | `docker start devaisle-ollama` (or `ollama serve`); retrieval still shows — toggle LLM off and narrate, or cut to recording. |
+| **LLM answer very slow (>20s)** | 14b under memory pressure / cold model | Pre-warm before the talk (ask one question during pre-flight); or switch `OLLAMA_MODEL` to `qwen2.5-coder:7b` for speed. |
 
 ## Demo-state drift (reset procedures)
 

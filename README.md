@@ -1,5 +1,14 @@
 # Code Aisle — a code-aware agent on MongoDB Atlas
 
+> **New here? Read [`demo/WALKTHROUGH.md`](demo/WALKTHROUGH.md) first** — one file
+> that runs you through the steps and the implementation.
+>
+> **The files that matter** (skip the toy corpus and UI scaffolding):
+> - `scripts/ingest.mjs` — code → documents, **no embedding field**.
+> - `scripts/create-index.mjs` — the `autoEmbed` index (MongoDB owns the vectors).
+> - `lib/retrieve.ts` — the whole retrieval brain: `$vectorSearch → $rerank`.
+
+
 A greenfield demo for a MongoDB `.local` session. It shows **MongoDB Atlas as the
 operational + retrieval layer for a code-aware agent**, using Atlas AI
 stack:
@@ -91,6 +100,19 @@ scripts/
 | `npm run retrieve`     | Run the `$vectorSearch` → `$rerank` retrieval from CLI.  |
 | `npm run commit-code`  | "Commit" a new code file (Stream Processing demo).       |
 | `npm run stream:create`| Create the Atlas Stream Processor.                       |
+
+## Architecture diagram (LikeC4)
+
+The system is modeled in `diagrams/code-aisle.c4` (validated). It has three
+views: system landscape, containers, and the retrieval pipeline.
+
+```bash
+npx likec4 start diagrams                    # live interactive preview in browser
+npx likec4 export png -o diagrams/out diagrams   # static PNGs for the talk
+npx likec4 validate diagrams                 # check the model parses
+```
+
+Or install the **LikeC4** VS Code extension for an inline preview.
 
 ## Demo flow (order)
 

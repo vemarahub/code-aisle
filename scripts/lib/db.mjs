@@ -22,6 +22,8 @@ export const config = {
   vectorIndexName: process.env.VECTOR_INDEX_NAME || "code_auto_index",
   embedModel: process.env.EMBED_MODEL || "voyage-code-4",
   rerankModel: process.env.RERANK_MODEL || "rerank-2.5",
+  ollamaUrl: process.env.OLLAMA_URL || "http://localhost:11434",
+  ollamaModel: process.env.OLLAMA_MODEL || "qwen2.5-coder:7b",
 };
 
 /**

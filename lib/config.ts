@@ -41,4 +41,12 @@ export const config = {
   get rerankModel(): string {
     return process.env.RERANK_MODEL || "rerank-2.5";
   },
+  /** Ollama endpoint for the (separate, pluggable) LLM answer stage. */
+  get ollamaUrl(): string {
+    return process.env.OLLAMA_URL || "http://localhost:11434";
+  },
+  /** Ollama model used to turn retrieved code into an answer. */
+  get ollamaModel(): string {
+    return process.env.OLLAMA_MODEL || "qwen2.5-coder:7b";
+  },
 } as const;

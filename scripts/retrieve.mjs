@@ -8,6 +8,7 @@
  */
 import { withDb, config } from "./lib/db.mjs";
 import { retrieveCode } from "./lib/retrieve.mjs";
+import { generateAnswer } from "./lib/generate.mjs";
 
 const DEFAULT_QUESTION =
   "Where is customer authentication handled, and what would I change to add MFA?";
@@ -22,7 +23,9 @@ function printResults(title, results, scoreKey) {
 }
 
 async function main() {
-  const question = process.argv.slice(2).join(" ").trim() || DEFAULT_QUESTION;
+  const args = process.argv.slice(2);
+  const withAnswer = args.includes("--answer");
+  const question = args.filter((a) => a !== "--answer").join(" ").trim() || DEFAULT_QUESTION;
 
   await withDb(async (db) => {
     console.log(`Question: "${question}"`);
@@ -40,6 +43,13 @@ async function main() {
 
     if (results.length === 0) {
       throw new Error("No results returned — is the index built and populated?");
+    }
+
+    // Optional, SEPARATE LLM stage — turns the retrieved code into an answer.
+    if (withAnswer) {
+      console.log(`\n--- LLM answer stage (Ollama · ${config.ollamaModel}) ---`);
+      const gen = await generateAnswer(question, results);
+      console.log(gen.ok ? `\n${gen.answer}` : `\n(LLM unavailable — ${gen.note})`);
     }
   });
 }

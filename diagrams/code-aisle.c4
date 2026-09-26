@@ -1,0 +1,113 @@
+// Code Aisle — LikeC4 model
+// Live preview:  npx likec4 start diagrams
+// Export images: npx likec4 export png -o diagrams/out diagrams
+// Or use the "LikeC4" VS Code extension for an inline preview.
+
+specification {
+  element person
+  element system
+  element container
+  element component
+  element datastore
+}
+
+model {
+  presenter = person "Presenter / Audience" {
+    description "Asks the codebase a question in plain English."
+  }
+
+  codeAisle = system "Code Aisle" {
+    description "A code-aware agent. The retrieval layer is entirely MongoDB."
+
+    ui = container "Agent UI" {
+      technology "Next.js (React, App Router)"
+      description "Question box + ranked results with a reranked/vector-only badge."
+    }
+
+    api = container "Retrieval API" {
+      technology "Next.js Route Handler (/api/ask)"
+      description "Stage 1 retrieval (MongoDB), then optional Stage 2 generation (LLM)."
+    }
+
+    generate = container "LLM answer stage" {
+      technology "lib/generate.ts"
+      description "Pluggable & separate: retrieved code in -> grounded answer out. Optional; retrieval works without it."
+    }
+
+    scripts = container "Demo scripts" {
+      technology "Node .mjs"
+      description "ingest, create-index, verify-index, retrieve (--answer), commit-new-code."
+    }
+  }
+
+  atlas = system "MongoDB Atlas" {
+    description "Operational + retrieval layer: data, metadata, embeddings, search, rerank — one place."
+
+    chunks = datastore "code_chunks collection" {
+      description "One doc per source file: content + repository/service/file/type metadata. No embedding field."
+    }
+
+    autoIndex = container "autoEmbed Vector Search index" {
+      technology "voyage-code-4"
+      description "Automated Embedding: MongoDB generates & maintains vectors for 'content' (works on free M0)."
+    }
+
+    vsearch = component "vectorSearch stage" {
+      description "Auto-embeds the query text, returns nearest code chunks (works on free M0)."
+    }
+
+    rerank = component "rerank stage" {
+      technology "Voyage rerank-2.5"
+      description "Reorders candidates by relevance. Native Reranking — needs Atlas 8.3+."
+    }
+  }
+
+  voyage = system "Voyage AI (managed by MongoDB)" {
+    description "Embedding (voyage-code-4) + reranking (rerank-2.5) models, hosted by Atlas."
+  }
+
+  ollama = system "Ollama (local)" {
+    description "Local LLM (qwen2.5-coder:14b) that turns retrieved code into an answer. Runs on the demo machine; optional."
+  }
+
+  // --- relationships ---
+  presenter -> ui "Asks a question"
+  ui -> api "POST /api/ask { question, generate? }"
+  api -> vsearch "Stage 1: aggregate vectorSearch (query text)"
+  vsearch -> rerank "candidates"
+  rerank -> api "ranked code"
+  vsearch -> autoIndex "queries"
+  autoIndex -> chunks "indexes 'content'"
+  autoIndex -> voyage "embeds docs & query (voyage-code-4)"
+  rerank -> voyage "reranks (rerank-2.5)"
+  api -> generate "Stage 2 (optional): retrieved code + question"
+  generate -> ollama "prompt (grounded in retrieved code)"
+  ollama -> generate "grounded answer"
+  generate -> api "answer + cited files"
+  scripts -> chunks "ingest / commit new file"
+  scripts -> autoIndex "create & verify index"
+  scripts -> generate "retrieve --answer (CLI path)"
+}
+
+views {
+  view landscape {
+    title "Code Aisle — system landscape"
+    include *
+  }
+
+  view ofCodeAisle of codeAisle {
+    title "Code Aisle — containers"
+    include *
+    include atlas, voyage, ollama
+  }
+
+  view retrieval {
+    title "Retrieval pipeline (the demo's core)"
+    include api, vsearch, rerank, autoIndex, chunks, voyage
+  }
+
+  view twoStages {
+    title "Two stages: MongoDB retrieval -> pluggable LLM answer"
+    include ui, api, vsearch, rerank, chunks, autoIndex, voyage, generate, ollama
+  }
+}

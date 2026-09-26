@@ -14,11 +14,20 @@ interface CodeHit {
   rerankScore?: number;
 }
 
+interface Generation {
+  answer: string;
+  model: string;
+  ok: boolean;
+  note?: string;
+}
+
 interface AskResponse {
   reranked: boolean;
   results: CodeHit[];
   note?: string;
   question: string;
+  generation: Generation | null;
+  retrievalMs?: number;
   latencyMs: number;
   error?: string;
 }
@@ -37,6 +46,7 @@ const SERVICE_COLORS: Record<string, string> = {
 
 export default function Home() {
   const [question, setQuestion] = useState(PRESETS[0]);
+  const [useLlm, setUseLlm] = useState(true);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<AskResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +61,7 @@ export default function Home() {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: query }),
+        body: JSON.stringify({ question: query, generate: useLlm }),
       });
       const json: AskResponse = await res.json();
       if (!res.ok) {
@@ -155,6 +165,26 @@ export default function Home() {
           <span style={{ color: "var(--muted)", fontSize: 14 }}>
             ⌘/Ctrl + Enter
           </span>
+          <label
+            style={{
+              marginLeft: "auto",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 15,
+              color: "var(--text)",
+              cursor: "pointer",
+            }}
+            title="Retrieval is always MongoDB. This toggles the separate Ollama answer stage."
+          >
+            <input
+              type="checkbox"
+              checked={useLlm}
+              onChange={(e) => setUseLlm(e.target.checked)}
+              style={{ width: 18, height: 18 }}
+            />
+            LLM answer (Ollama)
+          </label>
         </div>
 
         <div
@@ -236,6 +266,22 @@ export default function Home() {
             </p>
           )}
 
+          {data.generation && <AnswerPanel generation={data.generation} />}
+
+          <h3
+            style={{
+              fontSize: 16,
+              textTransform: "uppercase",
+              letterSpacing: 1,
+              color: "var(--muted)",
+              margin: "8px 0 12px",
+            }}
+          >
+            {data.generation
+              ? "Retrieved code (MongoDB) — the LLM's sources"
+              : "Retrieved code (MongoDB)"}
+          </h3>
+
           <ol style={{ listStyle: "none", padding: 0, margin: 0 }}>
             {data.results.map((hit, i) => (
               <ResultCard key={hit.file} hit={hit} rank={i + 1} />
@@ -244,6 +290,54 @@ export default function Home() {
         </section>
       )}
     </main>
+  );
+}
+
+function AnswerPanel({ generation }: { generation: Generation }) {
+  return (
+    <div
+      style={{
+        background: "var(--panel-2)",
+        border: "1px solid var(--accent-2)",
+        borderRadius: 12,
+        padding: "18px 20px",
+        marginBottom: 24,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          marginBottom: 10,
+        }}
+      >
+        <span style={{ fontSize: 18, fontWeight: 700 }}>Answer</span>
+        <span
+          style={{
+            fontSize: 12,
+            color: "var(--accent-2)",
+            border: "1px solid var(--accent-2)",
+            borderRadius: 999,
+            padding: "2px 8px",
+          }}
+        >
+          LLM · {generation.model}
+        </span>
+        <span style={{ fontSize: 12, color: "var(--muted)" }}>
+          generated from the retrieved code
+        </span>
+      </div>
+      {generation.ok ? (
+        <p style={{ fontSize: 18, lineHeight: 1.55, margin: 0, whiteSpace: "pre-wrap" }}>
+          {generation.answer}
+        </p>
+      ) : (
+        <p style={{ fontSize: 15, color: "var(--muted)", margin: 0 }}>
+          {generation.note ?? "LLM answer unavailable — showing retrieval only."}
+        </p>
+      )}
+    </div>
   );
 }
 
