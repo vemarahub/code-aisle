@@ -32,11 +32,35 @@ export interface CodeHit {
   rerankScore?: number;
 }
 
+export interface RetrievalMeta {
+  index: string;
+  embedModel: string;
+  rerankModel: string;
+  numCandidates: number;
+  vectorLimit: number;
+  finalLimit: number;
+  stages: string[]; // human-readable pipeline stages that ran
+  autoEmbedded: boolean; // query was sent as text and embedded by MongoDB
+}
+
 export interface RetrievalResult {
   reranked: boolean;
   results: CodeHit[];
   note?: string;
   question: string;
+  meta: RetrievalMeta;
+}
+
+function baseMeta(): Omit<RetrievalMeta, "stages"> {
+  return {
+    index: config.vectorIndexName,
+    embedModel: config.embedModel,
+    rerankModel: config.rerankModel,
+    numCandidates: NUM_CANDIDATES,
+    vectorLimit: VECTOR_LIMIT,
+    finalLimit: FINAL_LIMIT,
+    autoEmbedded: true,
+  };
 }
 
 function vectorSearchStage(question: string) {
@@ -127,6 +151,10 @@ export async function retrieveCode(
       results,
       question,
       note: "Reranking off — showing raw $vectorSearch ranking.",
+      meta: {
+        ...baseMeta(),
+        stages: ["$vectorSearch (autoEmbed query)", "$project"],
+      },
     };
   }
 
@@ -134,7 +162,19 @@ export async function retrieveCode(
     const results = (await coll
       .aggregate(rerankedPipeline(question))
       .toArray()) as CodeHit[];
-    return { reranked: true, results, question };
+    return {
+      reranked: true,
+      results,
+      question,
+      meta: {
+        ...baseMeta(),
+        stages: [
+          "$vectorSearch (autoEmbed query)",
+          `$rerank (${config.rerankModel})`,
+          "$project",
+        ],
+      },
+    };
   } catch (error) {
     if (!isRerankUnavailable(error)) {
       throw error;
@@ -150,6 +190,10 @@ export async function retrieveCode(
       note:
         "$rerank did not run — showing $vectorSearch ranking only. Reason: " +
         reason,
+      meta: {
+        ...baseMeta(),
+        stages: ["$vectorSearch (autoEmbed query)", "$project", "($rerank failed → fallback)"],
+      },
     };
   }
 }

@@ -32,3 +32,25 @@ code,
 pre {
   font-family: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
 }
+
+/* Pipeline flow — stages fade/slide in one after another (post-hoc reveal). */
+@keyframes stageIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stage {
+  animation: stageIn 0.45s ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage {
+    animation: none;
+  }
+}

@@ -21,12 +21,24 @@ interface Generation {
   note?: string;
 }
 
+interface RetrievalMeta {
+  index: string;
+  embedModel: string;
+  rerankModel: string;
+  numCandidates: number;
+  vectorLimit: number;
+  finalLimit: number;
+  stages: string[];
+  autoEmbedded: boolean;
+}
+
 interface AskResponse {
   reranked: boolean;
   results: CodeHit[];
   note?: string;
   question: string;
   generation: Generation | null;
+  meta?: RetrievalMeta;
   retrievalMs?: number;
   latencyMs: number;
   error?: string;
@@ -48,6 +60,7 @@ export default function Home() {
   const [question, setQuestion] = useState(PRESETS[0]);
   const [useRerank, setUseRerank] = useState(true);
   const [useLlm, setUseLlm] = useState(true);
+  const [showFlow, setShowFlow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<AskResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +71,7 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setData(null);
+    setShowFlow(false);
     try {
       const res = await fetch("/api/ask", {
         method: "POST",
@@ -268,10 +282,27 @@ export default function Home() {
           >
             <h2 style={{ fontSize: 24, margin: 0 }}>Results</h2>
             <RerankBadge reranked={data.reranked} />
-            <span style={{ color: "var(--muted)", fontSize: 14 }}>
-              {data.latencyMs} ms
-            </span>
+            {data.meta && (
+              <button
+                onClick={() => setShowFlow((s) => !s)}
+                style={{
+                  marginLeft: "auto",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: "var(--accent-2)",
+                  background: "transparent",
+                  border: "1px solid var(--accent-2)",
+                  borderRadius: 8,
+                  padding: "6px 14px",
+                  cursor: "pointer",
+                }}
+              >
+                {showFlow ? "Hide how it works ▴" : "How it works ▾"}
+              </button>
+            )}
           </div>
+
+          {data.meta && showFlow && <PipelineFlow meta={data.meta} data={data} />}
 
           {data.note && (
             <p
@@ -358,6 +389,236 @@ function AnswerPanel({ generation }: { generation: Generation }) {
         </p>
       )}
     </div>
+  );
+}
+
+function PipelineFlow({ meta, data }: { meta: RetrievalMeta; data: AskResponse }) {
+  const [showAuto, setShowAuto] = useState(false);
+
+  const rerankFailed = data.meta?.stages.some((s) => s.includes("failed"));
+  let i = 0; // running index for stagger delay
+
+  return (
+    <div style={{ marginBottom: 22 }}>
+      {/* Stage 0 — the question */}
+      <FlowStage
+        i={i++}
+        title="Your question"
+        color="var(--muted)"
+        state="on"
+        detail={`"${data.question}"`}
+      />
+      <StageConnector />
+
+      {/* Stage 1 — $vectorSearch (MongoDB, autoEmbed) */}
+      <FlowStage
+        i={i++}
+        title="$vectorSearch"
+        color="var(--accent)"
+        state="on"
+        detail={`MongoDB embeds the query with ${meta.embedModel} · searches ${meta.numCandidates} candidates · keeps ${meta.vectorLimit}`}
+        footer={
+          <button
+            onClick={() => setShowAuto((s) => !s)}
+            style={{
+              fontSize: 12.5,
+              color: "var(--accent-2)",
+              background: "transparent",
+              border: "1px solid var(--border)",
+              borderRadius: 8,
+              padding: "3px 9px",
+              cursor: "pointer",
+              marginTop: 8,
+            }}
+          >
+            {showAuto ? "Hide: how does it embed with no pipeline?" : "How does it embed with no pipeline? ▾"}
+          </button>
+        }
+      >
+        {showAuto && <AutoEmbedExplainer embedModel={meta.embedModel} />}
+      </FlowStage>
+      <StageConnector />
+
+      {/* Stage 2 — $rerank */}
+      <FlowStage
+        i={i++}
+        title="$rerank"
+        color="var(--accent)"
+        state={data.reranked ? "on" : rerankFailed ? "failed" : "off"}
+        detail={
+          data.reranked
+            ? `MongoDB reorders by relevance with ${meta.rerankModel}`
+            : rerankFailed
+              ? `Unavailable on this cluster — fell back to vector ranking`
+              : `Turned off — showing raw vector ranking`
+        }
+      />
+      <StageConnector />
+
+      {/* Stage 3 — results */}
+      <FlowStage
+        i={i++}
+        title={`Top ${meta.finalLimit} code files`}
+        color="var(--accent)"
+        state="on"
+        detail="Returned from MongoDB (see below)"
+      />
+
+      {/* Stage 4 — LLM (only if requested) */}
+      {data.generation && (
+        <>
+          <StageConnector />
+          <FlowStage
+            i={i++}
+            title="LLM answer"
+            color="var(--accent-2)"
+            state={data.generation.ok ? "on" : "off"}
+            detail={
+              data.generation.ok
+                ? `Ollama · ${data.generation.model} reads the retrieved code and answers`
+                : `LLM stage unavailable — retrieval still worked`
+            }
+          />
+        </>
+      )}
+    </div>
+  );
+}
+
+function AutoEmbedExplainer({ embedModel }: { embedModel: string }) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: 12,
+        marginTop: 10,
+      }}
+    >
+      <div
+        style={{
+          background: "var(--bg)",
+          border: "1px solid var(--accent)",
+          borderRadius: 10,
+          padding: 12,
+        }}
+      >
+        <div style={{ fontWeight: 700, color: "var(--accent)", marginBottom: 6, fontSize: 13 }}>
+          With Automated Embedding (this app)
+        </div>
+        <pre style={preStyle}>
+{`// index definition — that's it
+{ type: "autoEmbed",
+  path: "content",
+  model: "${embedModel}" }
+
+// query: just text
+$vectorSearch({ query: "…" })
+// MongoDB embeds + stores + syncs`}
+        </pre>
+      </div>
+      <div
+        style={{
+          background: "var(--bg)",
+          border: "1px solid var(--border)",
+          borderRadius: 10,
+          padding: 12,
+        }}
+      >
+        <div style={{ fontWeight: 700, color: "var(--muted)", marginBottom: 6, fontSize: 13 }}>
+          Without it (the usual glue)
+        </div>
+        <pre style={preStyle}>
+{`// you run an embedding pipeline
+const v = await embedder.embed(doc)
+await coll.insertOne({ ...doc, v })
+// keep vectors in sync on change
+// embed the query yourself too
+const qv = await embedder.embed(query)
+$vectorSearch({ queryVector: qv })`}
+        </pre>
+      </div>
+      <p style={{ gridColumn: "1 / -1", color: "var(--muted)", fontSize: 12.5, margin: 0 }}>
+        The generated vectors live in MongoDB&apos;s internal{" "}
+        <code>__mdb_internal_search</code> database — your{" "}
+        <code>code_chunks</code> collection stays clean (no embedding field).
+      </p>
+    </div>
+  );
+}
+
+const preStyle: React.CSSProperties = {
+  margin: 0,
+  fontSize: 12,
+  color: "#cdd6ea",
+  whiteSpace: "pre-wrap",
+  lineHeight: 1.45,
+};
+
+type StageState = "on" | "off" | "failed";
+
+function FlowStage({
+  i,
+  title,
+  detail,
+  color,
+  state,
+  footer,
+  children,
+}: {
+  i: number;
+  title: string;
+  detail: string;
+  color: string;
+  state: StageState;
+  footer?: React.ReactNode;
+  children?: React.ReactNode;
+}) {
+  const dim = state !== "on";
+  const borderColor =
+    state === "on" ? color : state === "failed" ? "#7a5a24" : "var(--border)";
+  return (
+    <div
+      className="stage"
+      style={{
+        animationDelay: `${i * 180}ms`,
+        borderLeft: `4px solid ${borderColor}`,
+        background: "var(--panel)",
+        border: "1px solid var(--border)",
+        borderLeftWidth: 4,
+        borderLeftColor: borderColor,
+        borderRadius: 10,
+        padding: "12px 16px",
+        opacity: dim ? 0.6 : 1,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 18, fontWeight: 700, color }}>{title}</span>
+        {state === "off" && (
+          <span style={{ fontSize: 12, color: "var(--muted)" }}>skipped</span>
+        )}
+        {state === "failed" && (
+          <span style={{ fontSize: 12, color: "#ffd7a0" }}>fallback</span>
+        )}
+      </div>
+      <div style={{ fontSize: 14, color: "var(--muted)", marginTop: 4 }}>{detail}</div>
+      {footer}
+      {children}
+    </div>
+  );
+}
+
+function StageConnector() {
+  return (
+    <div
+      aria-hidden
+      style={{
+        width: 2,
+        height: 16,
+        background: "var(--border)",
+        margin: "2px 0 2px 24px",
+      }}
+    />
   );
 }
 
