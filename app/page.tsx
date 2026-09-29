@@ -46,6 +46,7 @@ const SERVICE_COLORS: Record<string, string> = {
 
 export default function Home() {
   const [question, setQuestion] = useState(PRESETS[0]);
+  const [useRerank, setUseRerank] = useState(true);
   const [useLlm, setUseLlm] = useState(true);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<AskResponse | null>(null);
@@ -61,7 +62,7 @@ export default function Home() {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: query, generate: useLlm }),
+        body: JSON.stringify({ question: query, rerank: useRerank, generate: useLlm }),
       });
       const json: AskResponse = await res.json();
       if (!res.ok) {
@@ -168,6 +169,25 @@ export default function Home() {
           <label
             style={{
               marginLeft: "auto",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              fontSize: 15,
+              color: "var(--text)",
+              cursor: "pointer",
+            }}
+            title="On: $vectorSearch → $rerank (rerank-2.5). Off: raw $vectorSearch ranking. Toggle to compare."
+          >
+            <input
+              type="checkbox"
+              checked={useRerank}
+              onChange={(e) => setUseRerank(e.target.checked)}
+              style={{ width: 18, height: 18 }}
+            />
+            $rerank
+          </label>
+          <label
+            style={{
               display: "flex",
               alignItems: "center",
               gap: 8,

@@ -25,13 +25,16 @@ function printResults(title, results, scoreKey) {
 async function main() {
   const args = process.argv.slice(2);
   const withAnswer = args.includes("--answer");
-  const question = args.filter((a) => a !== "--answer").join(" ").trim() || DEFAULT_QUESTION;
+  const noRerank = args.includes("--no-rerank");
+  const question =
+    args.filter((a) => a !== "--answer" && a !== "--no-rerank").join(" ").trim() ||
+    DEFAULT_QUESTION;
 
   await withDb(async (db) => {
     console.log(`Question: "${question}"`);
     console.log(`Index: ${config.vectorIndexName}  |  embed: ${config.embedModel}  |  rerank: ${config.rerankModel}`);
 
-    const { reranked, results, note } = await retrieveCode(db, question);
+    const { reranked, results, note } = await retrieveCode(db, question, !noRerank);
 
     if (reranked) {
       printResults("Reranked results ($vectorSearch -> $rerank):", results, "rerankScore");

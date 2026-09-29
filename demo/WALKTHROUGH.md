@@ -36,14 +36,14 @@ agent. If Ollama is down, retrieval still works.
 
 ## 3. The files that matter (implementation)
 
-| File | What it does |
-| --- | --- |
-| `scripts/ingest.mjs` | Reads `corpus/` and inserts one document per file into `code_chunks` — `content` + metadata, **no embedding field**. |
-| `scripts/create-index.mjs` | Creates the `autoEmbed` Vector Search index (voyage-code-4). This is what makes MongoDB own the embeddings. |
-| `lib/retrieve.ts` | **Stage 1 — retrieval (MongoDB).** `$vectorSearch → $rerank → $project`, with a graceful fallback if `$rerank` isn't available. |
-| `lib/generate.ts` | **Stage 2 — the LLM answer (Ollama).** Separate & pluggable: retrieved code in → grounded answer out. Never throws. |
-| `app/api/ask/route.ts` | Runs Stage 1 always; Stage 2 only if `generate:true`. |
-| `app/page.tsx` | The browser UI — question box, LLM toggle, answer panel + ranked source files. |
+| File                       | What it does                                                                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `scripts/ingest.mjs`       | Reads `corpus/` and inserts one document per file into `code_chunks` — `content` + metadata, **no embedding field**.            |
+| `scripts/create-index.mjs` | Creates the `autoEmbed` Vector Search index (voyage-code-4). This is what makes MongoDB own the embeddings.                     |
+| `lib/retrieve.ts`          | **Stage 1 — retrieval (MongoDB).** `$vectorSearch → $rerank → $project`, with a graceful fallback if `$rerank` isn't available. |
+| `lib/generate.ts`          | **Stage 2 — the LLM answer (Ollama).** Separate & pluggable: retrieved code in → grounded answer out. Never throws.             |
+| `app/api/ask/route.ts`     | Runs Stage 1 always; Stage 2 only if `generate:true`.                                                                           |
+| `app/page.tsx`             | The browser UI — question box, LLM toggle, answer panel + ranked source files.                                                  |
 
 Everything else is scaffolding (the toy corpus, config, connection helper).
 
@@ -72,6 +72,7 @@ npm run dev                 # open http://localhost:3070
 ```
 
 CLI equivalent (rehearsal / fallback, not shown to audience):
+
 ```bash
 npm run retrieve -- "Where is customer authentication handled?"            # retrieval only
 npm run retrieve -- --answer "Where is customer authentication handled?"   # + LLM answer
@@ -84,7 +85,7 @@ npm run retrieve -- --answer "Where is customer authentication handled?"   # + L
    metadata, and no embedding field. MongoDB owns the vectors."
 2. **Retrieval only (toggle LLM OFF):** click the auth preset → auth files rank
    top. "This is pure MongoDB — `$vectorSearch` found the right code by meaning,
-   no embedding pipeline. But it's a *retriever* — it gives me files."
+   no embedding pipeline. But it's a _retriever_ — it gives me files."
 3. **Plug in the LLM (toggle ON):** same question → an **Answer** panel appears
    above the files. "Now I plug in a local LLM. It reads the code MongoDB
    retrieved and answers the question, citing the files. MongoDB is the retrieval
@@ -100,8 +101,8 @@ npm run retrieve -- --answer "Where is customer authentication handled?"   # + L
 
 `corpus/` is a **fake mini codebase** — 3 services, 9 files — that exists only to
 be searched. Each file is a small stub with a deliberately **distinct purpose**
-so semantic search returns obvious results. Tell the audience: *"This is stand-in
-code; the point is the MongoDB retrieval, not the code itself."*
+so semantic search returns obvious results. Tell the audience: _"This is stand-in
+code; the point is the MongoDB retrieval, not the code itself."_
 
 - **auth-service** — `AuthService.ts` (customer login/logout),
   `TokenManager.ts` (JWT access/refresh tokens), `PermissionValidator.ts` (RBAC).

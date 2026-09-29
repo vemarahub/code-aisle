@@ -101,7 +101,10 @@ function isRerankUnavailable(error: unknown): boolean {
     msg.includes("rerank") ||
     msg.includes("unrecognized") ||
     msg.includes("not allowed") ||
+    msg.includes("not enabled") ||
     msg.includes("unsupported") ||
+    msg.includes("mmsapierror") ||
+    msg.includes("voyage_api_key") ||
     msg.includes("8.3") ||
     msg.includes("native reranking")
   );
@@ -110,8 +113,22 @@ function isRerankUnavailable(error: unknown): boolean {
 export async function retrieveCode(
   db: Db,
   question: string,
+  useRerank: boolean = true,
 ): Promise<RetrievalResult> {
   const coll = db.collection(config.collectionName);
+
+  // Explicitly requested vector-only (the demo toggle) — skip $rerank entirely.
+  if (!useRerank) {
+    const results = (await coll
+      .aggregate(vectorOnlyPipeline(question))
+      .toArray()) as CodeHit[];
+    return {
+      reranked: false,
+      results,
+      question,
+      note: "Reranking off — showing raw $vectorSearch ranking.",
+    };
+  }
 
   try {
     const results = (await coll
@@ -122,6 +139,7 @@ export async function retrieveCode(
     if (!isRerankUnavailable(error)) {
       throw error;
     }
+    const reason = error instanceof Error ? error.message : String(error);
     const results = (await coll
       .aggregate(vectorOnlyPipeline(question))
       .toArray()) as CodeHit[];
@@ -130,8 +148,8 @@ export async function retrieveCode(
       results,
       question,
       note:
-        "$rerank unavailable on this cluster (needs MongoDB 8.3+ with Native " +
-        "Reranking enabled). Showing $vectorSearch ranking only.",
+        "$rerank did not run — showing $vectorSearch ranking only. Reason: " +
+        reason,
     };
   }
 }

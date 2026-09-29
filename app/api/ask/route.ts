@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const question = typeof body.question === "string" ? body.question.trim() : "";
     const withGeneration = body.generate === true;
+    const useRerank = body.rerank !== false; // default on; UI can turn it off
 
     if (!question) {
       return NextResponse.json(
@@ -31,7 +32,7 @@ export async function POST(request: NextRequest) {
     const db = await getDb();
 
     // --- Stage 1: retrieval (MongoDB) ---
-    const retrieval = await retrieveCode(db, question);
+    const retrieval = await retrieveCode(db, question, useRerank);
     const retrievalMs = Date.now() - started;
 
     // --- Stage 2: generation (Ollama), optional & separate ---
