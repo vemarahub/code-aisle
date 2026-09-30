@@ -49,6 +49,14 @@ Click **Setup**. Walk the visual map:
 > maintains the vectors in its own internal store with voyage-code-4. Same
 > pattern twice — once for the code, once for the agent's memory. No pipeline."
 
+**If asked about chunking (or to pre-empt it):**
+
+> "One simplification: I embed each file as a whole document so the results are
+> easy to read. In a real codebase you'd chunk — split by function or class,
+> maybe with a code-aware splitter — so retrieval returns the relevant *function*,
+> not a whole file. That's an ingestion choice; MongoDB's part — autoEmbed,
+> vector search, rerank — is identical either way."
+
 ---
 
 ## Act 1 — Search, rerank OFF (~1.5 min) · "search by meaning"
