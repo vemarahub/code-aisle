@@ -3,6 +3,13 @@
 > **New here? Read [`demo/WALKTHROUGH.md`](demo/WALKTHROUGH.md) first** — one file
 > that runs you through the steps and the implementation.
 >
+> **Single-page demo (feature branch):** one page with a **Setup · Search · RAG ·
+> Agent** segmented control — the demo progression. Setup shows the behind-the-
+> scenes MongoDB config; Search is `$vectorSearch` (+ `$rerank` toggle); RAG adds
+> the LLM answer; Agent is the multi-turn code-aware agent (MongoDB = retrieval
+> tool + memory). See [`demo/DEMO-SCRIPT.md`](demo/DEMO-SCRIPT.md) and
+> [`demo/AGENT.md`](demo/AGENT.md).
+>
 > **The files that matter** (skip the toy corpus and UI scaffolding):
 > - `scripts/ingest.mjs` — code → documents, **no embedding field**.
 > - `scripts/create-index.mjs` — the `autoEmbed` index (MongoDB owns the vectors).
@@ -47,95 +54,180 @@ Embeddings + voyage-code-4 + `$vectorSearch` all work; `$rerank` returns
 `AtlasError: $rerank is not allowed`. The app detects this and falls back to
 `$vectorSearch` ranking with `reranked: false`.
 
-## Setup
+## End-to-end setup (read this to run/demo)
 
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-2. Copy the env file and fill in your **throwaway** Atlas cluster values:
-   ```bash
-   cp .env.example .env
-   ```
-   `.env` holds demo-only values — no production secrets, no internal URLs.
-3. Verify the connection:
-   ```bash
-   npm run dev            # then open http://localhost:3070/api/health
-   ```
-   A healthy response returns `status: "ok"` and the effective model config.
+This is the complete path from a fresh clone to a running demo. Steps 3–6 are
+one-time per cluster; after that you just `npm run dev`.
+
+### 0. Prerequisites
+- **Node 18+** and **npm**.
+- A **MongoDB Atlas** cluster. For the full demo (with live `$rerank`) use an
+  **M10+ on MongoDB 9.0** with **Native Reranking** enabled and a **Voyage model
+  API key** on the project. A **free M0** runs everything *except* live `$rerank`
+  (it falls back gracefully — see the two-cluster note below).
+- **Ollama** running locally with `qwen2.5-coder:14b` pulled (for RAG + Agent
+  answers). Not needed for plain Search.
+
+### 1. Install
+```bash
+npm install
+```
+
+### 2. Configure `.env` (never committed)
+```bash
+cp .env.example .env      # then paste your Atlas URI + settings
+```
+`.env` holds demo-only values — no production secrets, no internal URLs.
+
+### 3. Ingest the code corpus  →  creates & fills `code_chunks`
+```bash
+npm run ingest            # 9 documents, NO embedding field
+```
+
+### 4. Create the code vector index  →  Automated Embedding turns on here
+```bash
+npm run create-index      # autoEmbed index (voyage-code-4) on code_chunks
+```
+
+### 5. Create the agent memory index  →  the ONE agent-specific Atlas step
+```bash
+npm run create-memory-index   # creates the agent_memory collection + its autoEmbed index
+```
+
+### 6. Verify  →  proves auto-embedding works (waits for the index to build)
+```bash
+npm run verify-index      # polls until queryable, runs a text query, expects auth files on top
+```
+
+### 7. Start Ollama (for RAG + Agent)
+```bash
+docker start devaisle-ollama          # or: ollama serve
+curl -s http://localhost:11434/api/tags | head -c 80    # confirm it's up
+```
+
+### 8. Run
+```bash
+npm run dev               # http://localhost:3070
+```
+Then walk the **Setup · Search · RAG · Agent** segments (see
+[`demo/DEMO-SCRIPT.md`](demo/DEMO-SCRIPT.md)).
+
+> **Tip:** pre-warm the LLM before demoing — `npm run retrieve -- --answer "warm up"` —
+> or the first RAG/Agent answer runs ~18s cold instead of ~9s warm.
+
+---
+
+## What gets configured (and what does NOT)
+
+| Piece | Where | How it's set up |
+| --- | --- | --- |
+| `code_chunks` collection | Atlas | created by `npm run ingest` (your code) |
+| Code vector index (`autoEmbed`) | Atlas | `npm run create-index` |
+| Automated Embedding | Atlas | comes *with* the autoEmbed index — no separate step |
+| `$rerank` (Native Reranking) | Atlas | Project Setting + Voyage API key (M10/9.0) |
+| `agent_memory` collection | Atlas | created by `npm run create-memory-index` (your code) |
+| Agent memory index (`autoEmbed`) | Atlas | `npm run create-memory-index` |
+| **Agent loop / logic** | **Code** | **nothing to "enable" — it's `lib/agent.ts`** |
+| LLM (the reasoning) | Local | Ollama running `qwen2.5-coder:14b` |
+
+**There is no "enable agent" switch.** An agent is not a MongoDB feature — it's
+application code (`lib/agent.ts`) that uses a local LLM to *decide* and calls
+MongoDB as its **retrieval tool** and its **memory**. The only Atlas-side thing
+unique to the agent is the `agent_memory` autoEmbed index — the *same kind* of
+index as the code one. Both `code_chunks` and `agent_memory` are ordinary
+collections **your code creates**; the only MongoDB-managed collection is
+`__mdb_internal_search`, where Atlas stores the generated vectors.
+
+## How Automated Embedding stays in sync (important for the demo)
+
+The autoEmbed index watches the **collection**, not your files on disk:
+
+- **Editing a `corpus/*.ts` file does nothing by itself** — the document is the
+  source of truth, not the file. Re-run `npm run ingest` to update the documents.
+- **Insert a document** → MongoDB embeds it and adds a vector to
+  `__mdb_internal_search` (this is the "commit new code" beat).
+- **Update a document's `content`** → MongoDB detects the change and
+  **re-embeds only that document** (delta detection), replacing its vector.
+- **Delete a document** → its vector is removed.
+
+Vectors are keyed to the source document's `_id` and kept in sync automatically —
+you never read or write `__mdb_internal_search` yourself.
+
+> Note: `npm run ingest` currently does `deleteMany` + `insertMany` (replaces the
+> whole repo), so it re-embeds all docs. The true *per-document delta* is what
+> `npm run commit-code` demonstrates (a single insert → single new vector).
+
+## Two-cluster strategy (free vs. M10)
+
+| Capability                              | Free M0 (8.0) | M10 (9.0) |
+| --------------------------------------- | :-----------: | :-------: |
+| Ingestion, Automated Embeddings         | ✅            | ✅        |
+| Vector Search (semantic code search)    | ✅            | ✅        |
+| RAG + Agent (app + Ollama)              | ✅            | ✅        |
+| Native reranking (`$rerank`)            | ❌ fallback   | ✅ live   |
+
+Develop/rehearse on the free M0; point `MONGODB_URI` at the M10 for the live
+`$rerank` beat — **no code change**. When `$rerank` isn't available the app shows
+`reranked: false` with the real reason and vector-only ranking.
 
 ## Environment variables
 
 | Variable            | Description                                             |
 | ------------------- | ------------------------------------------------------- |
-| `MONGODB_URI`       | Throwaway Atlas connection string (Atlas 8.3+).         |
+| `MONGODB_URI`       | Atlas connection string.                                |
 | `MONGODB_DB`        | Demo database (default `code_aisle_demo`).              |
 | `MONGODB_COLLECTION`| Corpus collection (default `code_chunks`).              |
-| `VECTOR_INDEX_NAME` | `autoEmbed` index name (default `code_auto_index`).     |
+| `VECTOR_INDEX_NAME` | Code `autoEmbed` index (default `code_auto_index`).     |
 | `EMBED_MODEL`       | Voyage embedding model (default `voyage-code-4`).       |
 | `RERANK_MODEL`      | Voyage reranker model (default `rerank-2.5`).           |
-
-## Project structure
-
-```
-app/
-  page.tsx              # Home (agent UI added in a later step)
-  api/health/route.ts   # Atlas connection health check
-lib/
-  config.ts             # Env-driven config (app side)
-  mongodb.ts            # Lazy, cached Atlas connection (app side)
-scripts/
-  lib/db.mjs            # Config + connection helper (scripts side)
-```
+| `OLLAMA_URL`        | Ollama endpoint (default `http://localhost:11434`).     |
+| `OLLAMA_MODEL`      | LLM for RAG/Agent (default `qwen2.5-coder:14b`).        |
+| `MEMORY_COLLECTION` | Agent memory collection (default `agent_memory`).       |
+| `MEMORY_INDEX_NAME` | Agent memory `autoEmbed` index (default `memory_auto_index`). |
 
 ## npm scripts
 
-| Script                 | What it does                                             |
-| ---------------------- | -------------------------------------------------------- |
-| `npm run dev`          | Start the app on port 3070.                              |
-| `npm run build`        | Production build.                                        |
-| `npm run ingest`       | Ingest the toy repo corpus into `code_chunks`.           |
-| `npm run create-index` | Create the `autoEmbed` Vector Search index.              |
-| `npm run verify-index` | Confirm the index is active and auto-embedding works.    |
-| `npm run retrieve`     | Run the `$vectorSearch` → `$rerank` retrieval from CLI.  |
-| `npm run commit-code`  | "Commit" a new code file (Stream Processing demo).       |
-| `npm run stream:create`| Create the Atlas Stream Processor.                       |
+| Script                      | What it does                                          |
+| --------------------------- | ----------------------------------------------------- |
+| `npm run dev`               | Start the app on port 3070.                           |
+| `npm run build`             | Production build.                                     |
+| `npm run ingest`            | Ingest the toy corpus into `code_chunks`.             |
+| `npm run create-index`      | Create the code `autoEmbed` Vector Search index.      |
+| `npm run create-memory-index`| Create the `agent_memory` collection + autoEmbed index. |
+| `npm run verify-index`      | Confirm the code index is active and auto-embedding works. |
+| `npm run retrieve -- "<q>"` | CLI retrieval (`--no-rerank`, `--answer` flags).      |
+| `npm run commit-code`       | Insert a new `MfaService.ts` doc (continuously-updating RAG). Use `-- --remove` to reset. |
+| `npm run stream:create`     | Print the Atlas Stream Processing definition (SPI-only). |
+
+## App routes
+
+| Route          | What it is                                              |
+| -------------- | ------------------------------------------------------- |
+| `/`            | The unified demo — Setup · Search · RAG · Agent.        |
+| `/api/setup`   | Live cluster state for the Setup view.                  |
+| `/api/ask`     | Retrieval (+ optional LLM answer) for Search & RAG.     |
+| `/api/agent`   | The agent loop (decide → retrieve → answer + memory).   |
+| `/api/health`  | Atlas connection health check.                          |
 
 ## Architecture diagram (LikeC4)
 
-The system is modeled in `diagrams/code-aisle.c4` (validated). It has three
-views: system landscape, containers, and the retrieval pipeline.
+The system is modeled in `diagrams/code-aisle.c4` (validated).
 
 ```bash
-npx likec4 start diagrams                    # live interactive preview in browser
+npx likec4 start diagrams                        # live interactive preview
 npx likec4 export png -o diagrams/out diagrams   # static PNGs for the talk
-npx likec4 validate diagrams                 # check the model parses
+npx likec4 validate diagrams                     # check the model parses
 ```
 
-Or install the **LikeC4** VS Code extension for an inline preview.
+## The three "wows" + the agent
 
-## Demo flow (order)
-
-1. `npm run ingest` — load the toy corpus into `code_chunks` (no vectors).
-2. `npm run create-index` — create the `autoEmbed` index (voyage-code-4).
-3. `npm run verify-index` — poll until queryable, then prove that a plain
-   **text** query is auto-embedded and returns the right code. No embedding
-   code runs in the app — MongoDB owns the vectors.
-4. `npm run retrieve "<question>"` — full `$vectorSearch` → `$rerank` retrieval.
-
-
-1. **Automated Embeddings (no pipeline)** — `create-index` + `verify-index`
-   show MongoDB embedding code with voyage-code-4; the app never computes a
-   vector. Works on free M0.
-2. **Code-aware retrieval** — `$vectorSearch` → `$rerank` (voyage `rerank-2.5`).
-   The app shows a `reranked ✓` badge when native reranking runs (8.3+ cluster);
-   otherwise it falls back to vector-only ranking with a `vector-only` badge.
-3. **Continuously-updating RAG** — `npm run commit-code` inserts a new
-   `auth-service/MfaService.ts`. Because the collection uses Automated Embedding,
-   MongoDB re-embeds and makes it searchable automatically. Ask the MFA question
-   before and after: the new file jumps to #1 within seconds. No reindex, no
-   pipeline. `npm run commit-code -- --remove` resets it.
-   - The event-driven version (Atlas Stream Processing) is in
-     `scripts/stream-processor.mjs` — a verified definition to run on an SPI-
-     enabled deployment (not available on M0).
+1. **Automated Embeddings (no pipeline)** — store plain code; MongoDB embeds it
+   with voyage-code-4. Shown in Setup + Search.
+2. **Code-aware retrieval + reranking** — `$vectorSearch → $rerank`. The `$rerank`
+   toggle shows the before/after (score bars re-sort). Live on M10.
+3. **Continuously-updating RAG** — `npm run commit-code` inserts a new file;
+   Automated Embedding makes it searchable in seconds. `-- --remove` resets.
+4. **Code-aware agent** — the Agent segment: an LLM decides when to search,
+   MongoDB is its retrieval tool *and* its memory (conversation + semantic recall).
+   See [`demo/AGENT.md`](demo/AGENT.md).
 

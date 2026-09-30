@@ -24,6 +24,8 @@ export const config = {
   rerankModel: process.env.RERANK_MODEL || "rerank-2.5",
   ollamaUrl: process.env.OLLAMA_URL || "http://localhost:11434",
   ollamaModel: process.env.OLLAMA_MODEL || "qwen2.5-coder:7b",
+  memoryCollection: process.env.MEMORY_COLLECTION || "agent_memory",
+  memoryIndexName: process.env.MEMORY_INDEX_NAME || "memory_auto_index",
 };
 
 /**

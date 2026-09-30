@@ -49,8 +49,32 @@ pre {
   animation: stageIn 0.45s ease both;
 }
 
+/* Score bars grow to their value; re-animates when rerank re-sorts results. */
+@keyframes barGrow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.scorebar-fill {
+  transform-origin: left center;
+  animation: barGrow 0.5s ease both;
+}
+
+/* Smoothly slide result rows when rerank reorders them. */
+.result-row {
+  transition: all 0.4s ease;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .stage {
+  .stage,
+  .scorebar-fill {
     animation: none;
+  }
+  .result-row {
+    transition: none;
   }
 }

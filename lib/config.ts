@@ -49,4 +49,12 @@ export const config = {
   get ollamaModel(): string {
     return process.env.OLLAMA_MODEL || "qwen2.5-coder:7b";
   },
+  /** Collection holding agent conversation + semantic memory. */
+  get memoryCollection(): string {
+    return process.env.MEMORY_COLLECTION || "agent_memory";
+  },
+  /** autoEmbed index over agent memory for semantic recall. */
+  get memoryIndexName(): string {
+    return process.env.MEMORY_INDEX_NAME || "memory_auto_index";
+  },
 } as const;
