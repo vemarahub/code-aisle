@@ -3,6 +3,13 @@
 > **New here? Read [`demo/WALKTHROUGH.md`](demo/WALKTHROUGH.md) first** — one file
 > that runs you through the steps and the implementation.
 >
+> **Single-page demo (feature branch):** one page with a **Setup · Search · RAG ·
+> Agent** segmented control — the demo progression. Setup shows the behind-the-
+> scenes MongoDB config; Search is `$vectorSearch` (+ `$rerank` toggle); RAG adds
+> the LLM answer; Agent is the multi-turn code-aware agent (MongoDB = retrieval
+> tool + memory). See [`demo/DEMO-SCRIPT.md`](demo/DEMO-SCRIPT.md) and
+> [`demo/AGENT.md`](demo/AGENT.md).
+>
 > **The files that matter** (skip the toy corpus and UI scaffolding):
 > - `scripts/ingest.mjs` — code → documents, **no embedding field**.
 > - `scripts/create-index.mjs` — the `autoEmbed` index (MongoDB owns the vectors).

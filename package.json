@@ -10,6 +10,7 @@
     "lint": "eslint app lib",
     "ingest": "node --env-file=.env scripts/ingest.mjs",
     "create-index": "node --env-file=.env scripts/create-index.mjs",
+    "create-memory-index": "node --env-file=.env scripts/create-memory-index.mjs",
     "verify-index": "node --env-file=.env scripts/verify-index.mjs",
     "retrieve": "node --env-file=.env scripts/retrieve.mjs",
     "commit-code": "node --env-file=.env scripts/commit-new-code.mjs",
